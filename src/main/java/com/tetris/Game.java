@@ -154,7 +154,7 @@ public class Game {
         newShape();
     }
 
-    // 消除行并计算连击得分
+    // 消除行并计算连击得分 实现消行
     public void clearLines() {
         int lines = 0;
         for (int i = HEIGHT-1; i >= 0; i--) {
