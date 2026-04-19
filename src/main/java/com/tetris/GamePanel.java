@@ -49,9 +49,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     private void playBGM() {
         try {
-            InputStream audioSrc = getClass().getResourceAsStream("/bgm.wav");
-            if (audioSrc == null) return;
-            AudioInputStream ais = AudioSystem.getAudioInputStream(audioSrc);
+            // 从 classpath 获取音频文件的 URL（推荐方式）
+            java.net.URL audioUrl = getClass().getResource("/bgm.wav");
+            if (audioUrl == null) {
+                System.err.println("bgm.wav not found in classpath");
+                return;
+            }
+            // 通过 URL 获取 AudioInputStream
+            AudioInputStream ais = AudioSystem.getAudioInputStream(audioUrl);
             bgm = AudioSystem.getClip();
             bgm.open(ais);
             bgm.loop(Clip.LOOP_CONTINUOUSLY);
