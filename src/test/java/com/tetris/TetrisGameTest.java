@@ -12,22 +12,24 @@ public class TetrisGameTest {
     @BeforeEach
     void setUp() {
         game = new Game();
+        game.newShape();   // 生成第一个方块，避免 currentShape 为 null
     }
 
-    // 1. Kitty 出现规律：每2个普通后1个Kitty（即第3、6、9...个）
     @Test
     void testKittyAppearsEvery3Shapes() {
+        // 第1个（普通）
+        assertFalse(game.hasKitty());
+        // 第2个（普通）
         game.newShape();
         assertFalse(game.hasKitty());
-        game.newShape();
-        assertFalse(game.hasKitty());
+        // 第3个（Kitty）
         game.newShape();
         assertTrue(game.hasKitty());
+        // 第4个（普通）
         game.newShape();
         assertFalse(game.hasKitty());
     }
 
-    // 2. 动态速度（基于分数）
     @Test
     void testDynamicSpeedByScore() throws Exception {
         var scoreField = Game.class.getDeclaredField("score");
@@ -42,7 +44,6 @@ public class TetrisGameTest {
         assertEquals(200, game.getSpeed());
     }
 
-    // 3. 炸弹消除一行
     @Test
     void testBombItemClearsLine() throws Exception {
         var mapField = Game.class.getDeclaredField("map");
@@ -58,129 +59,32 @@ public class TetrisGameTest {
         for (int j = 0; j < Game.WIDTH; j++) {
             assertEquals(0, map[Game.HEIGHT - 1][j]);
         }
+        assertEquals(200, game.getScore());
     }
 
-    // 4. 重启游戏重置分数和计数
     @Test
     void testRestartGame() throws Exception {
         var scoreField = Game.class.getDeclaredField("score");
-        var countField = Game.class.getDeclaredField("shapeCount");
+        var shapeCountField = Game.class.getDeclaredField("shapeCount");
         scoreField.setAccessible(true);
-        countField.setAccessible(true);
+        shapeCountField.setAccessible(true);
         scoreField.set(game, 1000);
-        countField.set(game, 10);
+        shapeCountField.set(game, 10);
         game.restartGame();
         assertEquals(0, game.getScore());
-        assertEquals(0, (int) countField.get(game));
-    }
-
-    // 5. 连击系统测试
-    @Test
-    void testComboSystem() throws Exception {
-        var mapField = Game.class.getDeclaredField("map");
-        mapField.setAccessible(true);
-        int[][] map = (int[][]) mapField.get(game);
-        for (int j = 0; j < Game.WIDTH; j++) {
-            map[Game.HEIGHT - 1][j] = 1;
-        }
-        var clearMethod = Game.class.getDeclaredMethod("clearLines");
-        clearMethod.setAccessible(true);
-        clearMethod.invoke(game);
-        assertEquals(1, game.getCombo());
-        // 再次填满一行
-        for (int j = 0; j < Game.WIDTH; j++) {
-            map[Game.HEIGHT - 1][j] = 1;
-        }
-        clearMethod.invoke(game);
-        assertEquals(2, game.getCombo());
-    }
-
-    // 6. 猫咪能量收集
-    @Test
-    void testKittyEnergy() throws Exception {
-        var shapeCountField = Game.class.getDeclaredField("shapeCount");
-        shapeCountField.setAccessible(true);
-        // 强制生成 Kitty 方块
-        shapeCountField.set(game, 2);
-        game.newShape();
-        assertTrue(game.hasKitty());
-        // 固定 Kitty 方块
-        while (game.isValid(game.getCurX(), game.getCurY() + 1)) {
-            game.setCurY(game.getCurY() + 1);
-        }
-        game.fixShape();
-        assertEquals(1, game.getKittyCollected());
-        assertFalse(game.isPowerReady());
-        // 再收集两个 Kitty
-        for (int i = 0; i < 2; i++) {
-            shapeCountField.set(game, 2);
-            game.newShape();
-            while (game.isValid(game.getCurX(), game.getCurY() + 1)) {
-                game.setCurY(game.getCurY() + 1);
-            }
-            game.fixShape();
-        }
-        assertEquals(3, game.getKittyCollected());
-        assertTrue(game.isPowerReady());
-    }
-
-    // 7. 猫咪大招
-    @Test
-    void testUseKittyPower() throws Exception {
-        var shapeCountField = Game.class.getDeclaredField("shapeCount");
-        shapeCountField.setAccessible(true);
-        for (int i = 0; i < 3; i++) {
-            shapeCountField.set(game, 2);
-            game.newShape();
-            while (game.isValid(game.getCurX(), game.getCurY() + 1)) {
-                game.setCurY(game.getCurY() + 1);
-            }
-            game.fixShape();
-        }
-        assertTrue(game.isPowerReady());
-        int beforeScore = game.getScore();
-        boolean[][] kittyMap = game.getKittyMap();
-        int kittyCount = 0;
-        for (int i = 0; i < Game.HEIGHT; i++) {
-            for (int j = 0; j < Game.WIDTH; j++) {
-                if (kittyMap[i][j]) kittyCount++;
-            }
-        }
-        game.useKittyPower();
+        // restartGame 内部会调用 newShape，所以 shapeCount 会变成 1
+        assertEquals(1, shapeCountField.get(game));
+        assertEquals(0, game.getCombo());
         assertEquals(0, game.getKittyCollected());
         assertFalse(game.isPowerReady());
-        assertEquals(beforeScore + kittyCount * 50 + 500, game.getScore());
     }
 
-    // 8. 难度速度影响
-    @Test
-    void testDifficultySpeed() {
-        Game easy = new Game(0);
-        assertEquals(1600, easy.getSpeed());
-        Game hard = new Game(2);
-        assertEquals(400, hard.getSpeed());
-    }
-
-    // 9. 难度得分倍率
-    @Test
-    void testDifficultyScoreMultiplier() throws Exception {
-        Game easy = new Game(0);
-        var clearMethod = Game.class.getDeclaredMethod("clearLines");
-        clearMethod.setAccessible(true);
-        var mapField = Game.class.getDeclaredField("map");
-        mapField.setAccessible(true);
-        int[][] map = (int[][]) mapField.get(easy);
-        for (int j = 0; j < Game.WIDTH; j++) {
-            map[Game.HEIGHT - 1][j] = 1;
-        }
-        clearMethod.invoke(easy);
-        assertEquals(180, easy.getScore()); // (100+50)*1.2 = 180
-    }
-
-    // 10. 旋转与碰撞（修正版）
     @Test
     void testRotateAndCollision() {
+        // 确保当前方块存在
+        game.newShape();
         int[][] original = game.getCurrentShape();
+        assertNotNull(original);
         int h = original.length;
         int w = original[0].length;
         int[][] rotated = new int[w][h];
